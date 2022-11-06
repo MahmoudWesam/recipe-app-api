@@ -21,3 +21,4 @@ class ManageUserViews(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user
+
