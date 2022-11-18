@@ -17,9 +17,9 @@ def detail_url(tag_id):
     return reverse("recipe:tag-detail", args=[tag_id])
 
 
-def create_user(**params):
+def create_user(email="user123@example.com", password="testpass123"):
     """Create and return a new user."""
-    return get_user_model().objects.create_user(**params)
+    return get_user_model().objects.create_user(email=email, password=password)
 
 
 class PublicTagsAPITests(TestCase):
@@ -39,7 +39,7 @@ class PrivateTagsApiTests(TestCase):
     """Test authenticated API requests."""
 
     def setUp(self):
-        self.user = create_user(email="user@example.com", password="test123")
+        self.user = create_user()
         self.client = APIClient()
         self.client.force_authenticate(self.user)
 
