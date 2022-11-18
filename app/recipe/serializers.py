@@ -2,26 +2,49 @@ from rest_framework import serializers
 from core.models import Recipe, Tag
 
 
-class RecipeSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Recipe
-        fields = [
-            "id",
-            "title",
-            "time_minutes",
-            "price",
-            "link",
-        ]
-        read_only_fields = ["id"]
-
-
-class RecipeDetailSerializer(RecipeSerializer):
-    class Meta(RecipeSerializer.Meta):
-        fields = RecipeSerializer.Meta.fields + ["description"]
-
-
 class TagSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tag
         fields = ["id", "name"]
         read_only_fields = ["id"]
+
+
+class RecipeSerializer(serializers.ModelSerializer):
+    tags = TagSerializer(many=True, required=False)
+
+    class Meta:
+        model = Recipe
+        fields = ["id", "title", "time_minutes", "price", "link", "tags"]
+        read_only_fields = ["id"]
+
+    def _get_or_create_tag(self, tags, recipe):
+        auth_user = self.context["request"].user
+        for tag in tags:
+            tag_obj, _created = Tag.objects.get_or_create(user=auth_user, **tag)
+            recipe.tags.add(tag_obj)
+
+    # Modifying default create funct since nested tags are treated as readonly fields
+    def create(self, validated_data):
+        tags = validated_data.pop("tags", [])
+        recipe = Recipe.objects.create(**validated_data)
+        self._get_or_create_tag(tags, recipe)
+
+        return recipe
+
+    # Modifying default update to support modifying tags on patch
+    def update(self, instance, validated_data):
+        tags = validated_data.pop("tags", [])
+        if tags is not None:
+            instance.tags.clear()
+            self._get_or_create_tag(tags, instance)
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        instance.save()
+        return instance
+
+
+class RecipeDetailSerializer(RecipeSerializer):
+    class Meta(RecipeSerializer.Meta):
+        fields = RecipeSerializer.Meta.fields + ["description"]
